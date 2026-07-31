@@ -192,19 +192,24 @@ def reversal_confirmed(df):
     return last3['High'].values[-1] > last3['High'].values[-2] and last3['Low'].values[-1] > last3['Low'].values[-2]
 
 def is_highest_ever_profit(stock):
-    """Approximate check using yfinance quarterly financials (typically last 4-5 quarters only)."""
+    """Approximate check using yfinance quarterly financials (typically last 4-5 quarters only).
+    IMPORTANT: this is a shallow window — always verify against Screener.in's 5-10yr P&L before
+    trusting an Early Entry flag. A stock can look like a fresh peak here while actually being
+    well below a peak from several years back that yfinance simply doesn't show."""
     try:
         financials = stock.quarterly_financials
         profit_rows = [i for i in financials.index if 'Net Income' in i]
         if not profit_rows or financials.empty:
-            return False, "no data"
+            return False, "no data — verify manually on Screener.in"
         series = financials.loc[profit_rows[0]].dropna()
         if len(series) < 2:
-            return False, "insufficient data"
+            return False, "insufficient data — verify manually on Screener.in"
         latest = series.iloc[0]
-        return (latest >= series.max()), f"latest {latest:,.0f} vs best {series.max():,.0f}"
+        is_max = latest >= series.max()
+        note = f"latest {latest:,.0f} vs best-of-{len(series)}-qtrs {series.max():,.0f} — VERIFY on Screener.in 5-10yr P&L, this window is short"
+        return is_max, note
     except Exception:
-        return False, "error fetching"
+        return False, "error fetching — verify manually on Screener.in"
 
 if st.button("Run CWH Scan"):
     results = []
@@ -280,4 +285,3 @@ if st.button("Run CWH Scan"):
             "This pattern is inherently rare and multi-week to form — an empty result "
             "most days is expected, not a bug."
         )
-
