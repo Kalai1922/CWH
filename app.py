@@ -194,22 +194,23 @@ def reversal_confirmed(df):
 def is_highest_ever_profit(stock):
     """Approximate check using yfinance quarterly financials (typically last 4-5 quarters only).
     IMPORTANT: this is a shallow window — always verify against Screener.in's 5-10yr P&L before
-    trusting an Early Entry flag. A stock can look like a fresh peak here while actually being
-    well below a peak from several years back that yfinance simply doesn't show."""
+    trusting an Early Entry flag. Returns (True/False/None, note); None means unverifiable."""
     try:
         financials = stock.quarterly_financials
         profit_rows = [i for i in financials.index if 'Net Income' in i]
         if not profit_rows or financials.empty:
-            return False, "no data — verify manually on Screener.in"
+            return None, "no data — verify manually on Screener.in"
         series = financials.loc[profit_rows[0]].dropna()
         if len(series) < 2:
-            return False, "insufficient data — verify manually on Screener.in"
+            return None, "insufficient data — verify manually on Screener.in"
+        if series.nunique() <= 1:
+            return None, "⚠️ data looks stale/duplicated (all quarters identical) — cannot verify, check Screener.in manually"
         latest = series.iloc[0]
         is_max = latest >= series.max()
         note = f"latest {latest:,.0f} vs best-of-{len(series)}-qtrs {series.max():,.0f} — VERIFY on Screener.in 5-10yr P&L, this window is short"
         return is_max, note
     except Exception:
-        return False, "error fetching — verify manually on Screener.in"
+        return None, "error fetching — verify manually on Screener.in"
 
 if st.button("Run CWH Scan"):
     results = []
