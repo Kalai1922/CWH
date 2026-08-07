@@ -194,7 +194,9 @@ def reversal_confirmed(df):
 def is_highest_ever_profit(stock):
     """Approximate check using yfinance quarterly financials (typically last 4-5 quarters only).
     IMPORTANT: this is a shallow window — always verify against Screener.in's 5-10yr P&L before
-    trusting an Early Entry flag. Returns (True/False/None, note); None means unverifiable."""
+    trusting an Early Entry flag. Returns (True/False/None, note); None means unverifiable.
+    Shows the FULL quarterly series so a genuine new-high pass (latest ties the max because it
+    IS the max) can be told apart from stale/duplicated data (every quarter shows the same number)."""
     try:
         financials = stock.quarterly_financials
         profit_rows = [i for i in financials.index if 'Net Income' in i]
@@ -203,11 +205,12 @@ def is_highest_ever_profit(stock):
         series = financials.loc[profit_rows[0]].dropna()
         if len(series) < 2:
             return None, "insufficient data — verify manually on Screener.in"
+        values_str = ", ".join(f"{v:,.0f}" for v in series.values)
         if series.nunique() <= 1:
-            return None, "⚠️ data looks stale/duplicated (all quarters identical) — cannot verify, check Screener.in manually"
+            return None, f"⚠️ ALL quarters identical ({values_str}) — this is stale/duplicated data, not a real flat profit run. Verify on Screener.in manually."
         latest = series.iloc[0]
         is_max = latest >= series.max()
-        note = f"latest {latest:,.0f} vs best-of-{len(series)}-qtrs {series.max():,.0f} — VERIFY on Screener.in 5-10yr P&L, this window is short"
+        note = f"quarters (latest→oldest): {values_str} — {'latest IS the highest' if is_max else 'latest is NOT the highest'}. Always confirm on Screener.in 5-10yr P&L, this window is short."
         return is_max, note
     except Exception:
         return None, "error fetching — verify manually on Screener.in"
